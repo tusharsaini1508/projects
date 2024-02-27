@@ -1,0 +1,117 @@
+import tkinter as tk
+from tkinter import messagebox
+import webbrowser
+import json
+import os
+import random as random
+
+class InputWindow:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Input Data")
+        self.root.geometry("400x250")
+        self.root.configure(bg="lightblue")
+
+        self.name_label = tk.Label(self.root, text="Name:", bg="lightblue")
+        self.name_label.pack()
+        self.name_entry = tk.Entry(self.root, width=50)
+        self.name_entry.pack()
+
+        self.link_label = tk.Label(self.root, text="Link:", bg="lightblue")
+        self.link_label.pack()
+        self.link_entry = tk.Entry(self.root, width=50)
+        self.link_entry.pack()
+
+        self.save_button = tk.Button(self.root, text="Save", command=self.save_data, width=20, height=2, bg="green", fg="white")
+        self.save_button.pack()
+
+    def save_data(self):
+        name = self.name_entry.get()
+        link = self.link_entry.get()
+
+        if not name or not link:
+            messagebox.showerror("Error", "Please enter both name and link.")
+            return
+
+        data = {"name": name, "link": link}
+        with open("saved_links.json", "a") as file:
+            json.dump(data, file)
+            file.write("\n")
+
+        messagebox.showinfo("Success", "Data saved successfully.")
+
+        self.root.destroy()
+
+class MainWindow:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Main Window")
+        self.root.geometry("400x250")
+        self.root.configure(bg="lightblue")
+
+        self.input_button = tk.Button(self.root, text="Input Data", command=self.input_data, width=20, height=2, bg="blue", fg="white")
+        self.input_button.pack(pady=10)
+
+        self.browse_button = tk.Button(self.root, text="Browse", command=self.browse_link, width=20, height=2, bg="orange", fg="white")
+        self.browse_button.pack()
+
+        self.history_button = tk.Button(self.root, text="History", command=self.view_history, width=20, height=2, bg="red", fg="white")
+        self.history_button.pack()
+
+        self.create_played_links_file()
+
+    def create_played_links_file(self):
+        if not os.path.exists("played_links.json"):
+            with open("played_links.json", "w") as played_file:
+                json.dump([], played_file)
+
+    def input_data(self):
+        input_window = tk.Toplevel(self.root)
+        InputWindow(input_window)
+
+    def browse_link(self):
+        with open("saved_links.json", "r") as file:
+            lines = file.readlines()
+            if len(lines) < 2:
+                messagebox.showerror("Error", "There are less than two saved links.")
+                return
+
+            links = [json.loads(line) for line in lines]
+
+            with open("played_links.json", "r") as played_file:
+                played_links = json.load(played_file)
+
+            remaining_links = [link for link in links if link["link"] not in played_links]
+
+            if not remaining_links:
+                remaining_links = links
+
+            selected_link = random.choice(remaining_links)
+            webbrowser.open_new(selected_link["link"])
+
+            played_links.append(selected_link["link"])
+
+            with open("played_links.json", "w") as played_file:
+                json.dump(played_links, played_file)
+
+    def play_again(self, link):
+        webbrowser.open_new(link)
+
+    def view_history(self):
+        with open("played_links.json", "r") as played_file:
+            played_links = json.load(played_file)
+
+        if not played_links:
+            messagebox.showinfo("History", "No links have been played yet.")
+        else:
+            top = tk.Toplevel(self.root)
+            top.title("History")
+
+            for index, link in enumerate(played_links[-10:]):
+                button = tk.Button(top, text=f"Link {index+1}", command=lambda l=link: self.play_again(l))
+                button.pack()
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = MainWindow(root)
+    root.mainloop()
